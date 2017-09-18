@@ -19,7 +19,7 @@ then need to sudo to a different identity for each command.}
   gem.require_paths = ["lib"]
   gem.version       = SSHKit::Backends::NetsshGlobal::VERSION
 
-  gem.add_runtime_dependency('sshkit', '1.7.1')
+  gem.add_runtime_dependency('sshkit', '>= 1.7.1')
 
   gem.add_development_dependency('minitest', ['>= 2.11.3', '< 2.12.0'])
   gem.add_development_dependency('rake')

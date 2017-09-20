@@ -20,6 +20,16 @@ module SSHKit
       end
     end
 
+    def environment_string
+      environment_hash.collect do |key,value|
+        if key.is_a? Symbol
+          "#{key.to_s.upcase}=#{value}"
+        else
+          "#{key.to_s}=#{value}"
+        end
+      end.join(' ')
+    end
+
     def environment_hash
       default_env.merge(options_env)
     end
@@ -59,7 +69,7 @@ module SSHKit
     end
 
     def ssh_command?
-      options.fetch(:ssh_commands, []).include?(command)
+      options.fetch(:ssh_commands, []).include?(command.to_sym)
     end
 
     def ssh_forwarding_enabled?

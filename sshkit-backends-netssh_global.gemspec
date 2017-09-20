@@ -21,7 +21,7 @@ then need to sudo to a different identity for each command.}
 
   gem.add_runtime_dependency('sshkit', '~> 1.11')
 
-  gem.add_development_dependency('minitest', ['>= 2.11.3', '< 2.12.0'])
+  gem.add_development_dependency('minitest', '>= 2.11.3', '< 5.11.0')
   gem.add_development_dependency('rake')
   gem.add_development_dependency('turn')
   gem.add_development_dependency('mocha')

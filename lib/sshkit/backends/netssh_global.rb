@@ -8,7 +8,7 @@ module SSHKit
         attr_writer :ssh_commands
 
         def ssh_commands
-          @ssh_commands || [:ssh, :git, :'ssh-add', :bundle]
+          @ssh_commands ||= [:ssh, :git, :'ssh-add', :bundle]
         end
       end
 

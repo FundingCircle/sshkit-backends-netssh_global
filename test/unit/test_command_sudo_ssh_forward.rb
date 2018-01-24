@@ -1,4 +1,4 @@
-require 'helper'
+require_relative '../helper'
 require 'sshkit/command_sudo_ssh_forward'
 
 module SSHKit

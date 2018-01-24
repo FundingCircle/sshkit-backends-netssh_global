@@ -1,4 +1,4 @@
-require 'helper'
+require_relative '../../helper'
 require 'securerandom'
 
 require 'sshkit/backends/netssh_global'

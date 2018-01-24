@@ -1,3 +1,5 @@
+require 'sshkit'
+
 module SSHKit
   class CommandSudoSshForward < SSHKit::Command
     def to_command

@@ -66,8 +66,7 @@ module SSHKit
         end
       end
 
-      def command(*args)
-        options = args.extract_options!
+      def command(args, options)
         options.merge!(
           in: pwd,
           env: @env,
@@ -77,7 +76,7 @@ module SSHKit
           ssh_commands: property(:ssh_commands),
           shell: property(:shell)
         )
-        SSHKit::CommandSudoSshForward.new(*[*args, options])
+        SSHKit::CommandSudoSshForward.new(*args.concat([options]))
       end
     end
   end

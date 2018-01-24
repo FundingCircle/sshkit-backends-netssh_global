@@ -33,17 +33,12 @@ module SSHKit
       end
 
       def test_capture
-        File.open('/dev/null', 'w') do |dnull|
-          SSHKit.capture_output(dnull) do
-            captured_command_result = nil
-            NetsshGlobal.new(a_host) do
-              captured_command_result = capture(:uname)
-            end.run
+        captured_command_result = nil
+        NetsshGlobal.new(a_host) do |_host|
+          captured_command_result = capture(:uname)
+        end.run
 
-            assert captured_command_result
-            assert_match captured_command_result, /Linux|Darwin/
-          end
-        end
+        assert_includes %W(Linux Darwin), captured_command_result
       end
 
       def test_ssh_option_merge

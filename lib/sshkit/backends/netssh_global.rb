@@ -50,16 +50,13 @@ module SSHKit
 
       def with_ssh
         configure_host
-        conn = self.class.pool.checkout(
-          String(host.hostname),
-          host.username,
-          host.netssh_options,
-          &Net::SSH.method(:start)
-        )
-        begin
-          yield conn.connection
-        ensure
-          self.class.pool.checkin conn
+        self.class.pool.with(
+            Net::SSH.method(:start),
+            String(host.hostname),
+            host.username,
+            host.netssh_options
+        ) do |connection|
+          yield connection
         end
       end
 

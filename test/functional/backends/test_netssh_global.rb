@@ -150,14 +150,6 @@ module SSHKit
         assert(result, 'Expected test to execute as "owner", but it did not')
       end
 
-      def test_test_executes_as_ssh_user_when_command_contains_spaces
-        result = NetsshGlobal.new(a_host) do
-          test 'test "$USER" = "vagrant"'
-        end.run
-
-        assert(result, 'Expected test to execute as "vagrant", but it did not')
-      end
-
       def test_upload_file
         file_contents = ""
         file_owner = nil

@@ -22,16 +22,6 @@ module SSHKit
       end
     end
 
-    def environment_string
-      environment_hash.collect do |key,value|
-        if key.is_a? Symbol
-          "#{key.to_s.upcase}=#{value}"
-        else
-          "#{key.to_s}=#{value}"
-        end
-      end.join(' ')
-    end
-
     def environment_hash
       default_env.merge(options_env)
     end

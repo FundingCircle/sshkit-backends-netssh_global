@@ -8,7 +8,7 @@ module SSHKit
         attr_writer :ssh_commands
 
         def ssh_commands
-          @ssh_commands || [:ssh, :git, :'ssh-add', :bundle]
+          @ssh_commands ||= [:ssh, :git, :'ssh-add', :bundle]
         end
       end
 
@@ -50,16 +50,13 @@ module SSHKit
 
       def with_ssh
         configure_host
-        conn = self.class.pool.checkout(
-          String(host.hostname),
-          host.username,
-          host.netssh_options,
-          &Net::SSH.method(:start)
-        )
-        begin
-          yield conn.connection
-        ensure
-          self.class.pool.checkin conn
+        self.class.pool.with(
+            Net::SSH.method(:start),
+            String(host.hostname),
+            host.username,
+            host.netssh_options
+        ) do |connection|
+          yield connection
         end
       end
 
@@ -69,8 +66,7 @@ module SSHKit
         end
       end
 
-      def command(*args)
-        options = args.extract_options!
+      def command(args, options)
         options.merge!(
           in: pwd,
           env: @env,
@@ -80,7 +76,7 @@ module SSHKit
           ssh_commands: property(:ssh_commands),
           shell: property(:shell)
         )
-        SSHKit::CommandSudoSshForward.new(*[*args, options])
+        SSHKit::CommandSudoSshForward.new(*args.concat([options]))
       end
     end
   end

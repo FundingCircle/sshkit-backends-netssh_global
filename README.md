@@ -37,6 +37,8 @@ rake
 ```ruby
 require 'sshkit/backends/netssh_global'
 
+set :sshkit_backend, SSHKit::Backend::NetsshGlobal
+
 SSHKit::Backend::NetsshGlobal.configure do |config|
   config.owner        = 'bob'       # Which user to sudo as for every command
   config.directory    = '/home/bob' # Can be specified if it is important to default commands to run in a 

@@ -33,7 +33,7 @@ class VagrantWrapper
     def running?
       return @running unless @running.nil?
 
-      status = `#{vagrant_binary} status`
+      status = `#{vagrant_binary} status || true`
 
       @running = status.include?('running')
     end

@@ -1,6 +1,4 @@
 # -*- encoding: utf-8 -*-
-require File.expand_path('../lib/sshkit/backends/version', __FILE__)
-
 Gem::Specification.new do |gem|
 
   gem.authors       = ["Theo Cushion", "Dennis Ideler"]
@@ -17,7 +15,7 @@ then need to sudo to a different identity for each command.}
   gem.test_files    = `git ls-files -- test/*`.split("\n")
   gem.name          = "sshkit-backends-netssh_global"
   gem.require_paths = ["lib"]
-  gem.version       = SSHKit::Backends::NetsshGlobal::VERSION
+  gem.version       = '0.2.1'
 
   gem.add_runtime_dependency('sshkit', '~> 1.11')
 

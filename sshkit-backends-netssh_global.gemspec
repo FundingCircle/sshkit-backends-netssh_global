@@ -7,7 +7,7 @@ Gem::Specification.new do |gem|
   gem.description   = %q{A backend to be used in conjunction with Capistrano 3
 and SSHKit to allow deployment on setups where users login as one identity and
 then need to sudo to a different identity for each command.}
-  gem.homepage      = "http://github.com/FundingCircle/sshkit-backends-netssh_global"
+  gem.homepage      = "https://github.com/FundingCircle/sshkit-backends-netssh_global"
   gem.license       = "BSD-3-Clause"
 
   gem.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }

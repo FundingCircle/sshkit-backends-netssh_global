@@ -19,7 +19,7 @@ end
 class FunctionalTest < MiniTest::Unit::TestCase
   def setup
     unless VagrantWrapper.running?
-      warn "Vagrant VMs are not running. Please, start it manually with `vagrant up`"
+      skip "Vagrant VMs are not running. Please, start it manually with `vagrant up`"
     end
   end
 end

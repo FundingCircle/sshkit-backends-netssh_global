@@ -1,4 +1,4 @@
-require 'helper'
+require_relative '../../helper'
 require 'securerandom'
 
 require 'sshkit/backends/netssh_global'
@@ -8,6 +8,10 @@ module SSHKit
     class TestNetsshGlobalFunctional < FunctionalTest
       def setup
         super
+        @output = String.new
+        SSHKit.config.output_verbosity = :debug
+        SSHKit.config.output = SSHKit::Formatter::SimpleText.new(@output)
+
         NetsshGlobal.configure do |config|
           config.owner = a_user
           config.directory = nil
@@ -32,18 +36,36 @@ module SSHKit
         VagrantWrapper.hosts['one']
       end
 
-      def test_capture
-        File.open('/dev/null', 'w') do |dnull|
-          SSHKit.capture_output(dnull) do
-            captured_command_result = nil
-            NetsshGlobal.new(a_host) do
-              captured_command_result = capture(:uname)
-            end.run
-
-            assert captured_command_result
-            assert_match captured_command_result, /Linux|Darwin/
+      def test_simple_netssh
+        NetsshGlobal.new(a_host) do
+          execute 'date'
+          execute :ls, '-l'
+          with rails_env: :production do
+            within '/tmp' do
+              as :root do
+                execute :touch, 'restart.txt'
+              end
+            end
           end
-        end
+        end.run
+
+        command_lines = @output.lines.select { |line| line.start_with?('Command:') }
+        assert_equal [
+                         "Command: sudo -u owner -- sh -c '/usr/bin/env date'\n",
+                         "Command: sudo -u owner -- sh -c '/usr/bin/env ls -l'\n",
+                         "Command: if test ! -d /tmp; then echo \"Directory does not exist '/tmp'\" 1>&2; false; fi\n",
+                         "Command: if ! sudo -u root whoami > /dev/null; then echo \"You cannot switch to user 'root' using sudo, please check the sudoers file\" 1>&2; false; fi\n",
+                         "Command: cd /tmp && sudo -u root RAILS_ENV=\"production\" -- sh -c '/usr/bin/env touch restart.txt'\n"
+                     ], command_lines
+      end
+
+      def test_capture
+        captured_command_result = nil
+        NetsshGlobal.new(a_host) do |_host|
+          captured_command_result = capture(:uname)
+        end.run
+
+        assert_includes %W(Linux Darwin), captured_command_result
       end
 
       def test_ssh_option_merge
@@ -54,7 +76,20 @@ module SSHKit
           capture(:uname)
           host_ssh_options = host.ssh_options
         end.run
-        assert_equal({ forward_agent: false, paranoid: true }, host_ssh_options)
+        assert_equal [:forward_agent, :paranoid, :known_hosts, :logger, :password_prompt].sort, host_ssh_options.keys.sort
+        assert_equal false, host_ssh_options[:forward_agent]
+        assert_equal true, host_ssh_options[:paranoid]
+        assert_instance_of SSHKit::Backend::Netssh::KnownHosts, host_ssh_options[:known_hosts]
+      end
+
+      def test_env_vars_substituion_in_subshell
+        captured_command_result = nil
+        NetsshGlobal.new(a_host) do |_host|
+          with some_env_var: :some_value do
+            captured_command_result = capture(:echo, '$SOME_ENV_VAR')
+          end
+        end.run
+        assert_equal "some_value", captured_command_result
       end
 
       def test_configure_owner_via_global_config
@@ -152,14 +187,6 @@ module SSHKit
         assert(result, 'Expected test to execute as "owner", but it did not')
       end
 
-      def test_test_executes_as_ssh_user_when_command_contains_spaces
-        result = NetsshGlobal.new(a_host) do
-          test 'test "$USER" = "vagrant"'
-        end.run
-
-        assert(result, 'Expected test to execute as "vagrant", but it did not')
-      end
-
       def test_upload_file
         file_contents = ""
         file_owner = nil
@@ -225,6 +252,42 @@ module SSHKit
         assert_equal a_user, file_owner
       end
 
+      def test_upload_and_then_capture_file_contents
+        actual_file_contents = ""
+        actual_file_owner = nil
+        file_name = File.join("/tmp", SecureRandom.uuid)
+        File.open file_name, 'w+' do |f|
+          f.write "Some Content\nWith a newline and trailing spaces    \n "
+        end
+        NetsshGlobal.new(a_host) do
+          upload!(file_name, file_name)
+          actual_file_contents = capture(:cat, file_name, strip: false)
+          actual_file_owner = capture(:stat, '-c', '%U',  file_name)
+        end.run
+        assert_equal "Some Content\nWith a newline and trailing spaces    \n ", actual_file_contents
+        assert_equal a_user, actual_file_owner
+      end
+
+      def test_upload_within
+        file_name = SecureRandom.uuid
+        file_contents = "Some Content"
+        dir_name = SecureRandom.uuid
+        actual_file_contents = ""
+        actual_file_owner = nil
+        NetsshGlobal.new(a_host) do |_host|
+          within("/tmp") do
+            execute :mkdir, "-p", dir_name
+            within(dir_name) do
+              upload!(StringIO.new(file_contents), file_name)
+            end
+          end
+          actual_file_contents = capture(:cat, "/tmp/#{dir_name}/#{file_name}", strip: false)
+          actual_file_owner = capture(:stat, '-c', '%U', "/tmp/#{dir_name}/#{file_name}")
+        end.run
+        assert_equal file_contents, actual_file_contents
+        assert_equal a_user, actual_file_owner
+      end
+
       def test_upload_string_io
         file_contents = ""
         file_owner = nil
@@ -253,6 +316,31 @@ module SSHKit
         end.run
 
         assert_equal File.open(file_name).read, file_contents
+      end
+
+      def test_upload_via_pathname
+        file_contents = ""
+        file_owner = nil
+        NetsshGlobal.new(a_host) do |_host|
+          file_name = Pathname.new(File.join("/tmp", SecureRandom.uuid))
+          upload!(StringIO.new('example_io'), file_name)
+          file_owner = capture(:stat, '-c', '%U',  file_name)
+          file_contents = download!(file_name)
+        end.run
+        assert_equal "example_io", file_contents
+        assert_equal a_user, file_owner
+      end
+
+      def test_interaction_handler
+        captured_command_result = nil
+        NetsshGlobal.new(a_host) do
+          command = 'echo Enter Data; read the_data; echo Captured $the_data;'
+          captured_command_result = capture(command, interaction_handler: {
+              "Enter Data\n" => "SOME DATA\n",
+              "Captured SOME DATA\n" => nil
+          })
+        end.run
+        assert_equal("Enter Data\nCaptured SOME DATA", captured_command_result)
       end
 
       def test_ssh_forwarded_when_command_is_ssh_command

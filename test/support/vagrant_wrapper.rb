@@ -31,10 +31,11 @@ class VagrantWrapper
     end
 
     def running?
-      @running ||= begin
-        status = `#{vagrant_binary} status`
-        status.include?('running')
-      end
+      return @running unless @running.nil?
+
+      status = `#{vagrant_binary} status || true`
+
+      @running = status.include?('running')
     end
 
     def boxes_list

@@ -1,5 +1,13 @@
 version: 2
 
+rubygems-login: &rubygems-login
+  run:
+    name: Login to RubyGems
+    command: |
+      mkdir ~/.gem
+      echo ":rubygems_api_key: $RUBYGEMS_API_KEY" >  ~/.gem/credentials
+      chmod 0600 ~/.gem/credentials
+
 defaults: &defaults
   steps:
     - run: apk add --no-cache --no-progress git
@@ -8,7 +16,41 @@ defaults: &defaults
     - run: bundle exec rake test
   working_directory: ~/sshkit-backends-netssh_global
 
+default-deploys: &default-deploys
+  docker:
+    - image: ruby:alpine
+  working_directory: ~/sshkit-backends-netssh_global
+
 jobs:
+  deploy-gem:
+    <<: *default-deploys
+    steps:
+      - checkout
+      - *rubygems-login
+      - run:
+          name: Build gem
+          command: gem build "$CIRCLE_PROJECT_REPONAME".gemspec
+      - run:
+          name: Publish gem to RubyGems
+          command: |
+            package=$(ls -t1 "$CIRCLE_PROJECT_REPONAME"*.gem | head -1)
+            gem push "$CIRCLE_PROJECT_REPONAME"-"$(echo $CIRCLE_TAG | sed -e 's/v//')".gem
+  deploy-pre-release-gem:
+    <<: *default-deploys
+    steps:
+      - checkout
+      - *rubygems-login
+      - run:
+          name: Install gem-versioner
+          command: gem install gem-versioner
+      - run:
+          name: Build gem
+          command: PRE_RELEASE="$CIRCLE_BRANCH" gem build "$CIRCLE_PROJECT_REPONAME".gemspec
+      - run:
+          name: Push pre-release gem to RubyGems
+          command: |
+            package=$(ls -t1 "$CIRCLE_PROJECT_REPONAME"*.gem | head -1)
+            gem push "$package"
   test-ruby-2.2:
     <<: *defaults
     docker:
@@ -28,9 +70,43 @@ jobs:
 
 workflows:
   version: 2
-  test-against-rubies:
+  test-then-release-gem:
     jobs:
-      - test-ruby-2.2
-      - test-ruby-2.3
-      - test-ruby-2.4
-      - test-ruby-2.5
+      - test-ruby-2.2:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d\+/
+      - test-ruby-2.3:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d\+/
+      - test-ruby-2.4:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d\+/
+      - test-ruby-2.5:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d\+/
+      - deploy-gem:
+          context: org-global
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v\d+\.\d+\.\d\+/
+          requires:
+            - test-ruby-2.2
+            - test-ruby-2.3
+            - test-ruby-2.4
+            - test-ruby-2.5
+      - deploy-pre-release-gem:
+          context: org-global
+          filters:
+            branches:
+              ignore: master
+          requires:
+            - test-ruby-2.2
+            - test-ruby-2.3
+            - test-ruby-2.4
+            - test-ruby-2.5

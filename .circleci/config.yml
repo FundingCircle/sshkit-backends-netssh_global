@@ -1,0 +1,36 @@
+version: 2
+
+defaults: &defaults
+  steps:
+    - run: apk add --no-cache --no-progress git
+    - checkout
+    - run: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle
+    - run: bundle exec rake test
+  working_directory: ~/sshkit-backends-netssh_global
+
+jobs:
+  test-ruby-2.2:
+    <<: *defaults
+    docker:
+      - image: ruby:2.2-alpine
+  test-ruby-2.3:
+    <<: *defaults
+    docker:
+      - image: ruby:2.3-alpine
+  test-ruby-2.4:
+    <<: *defaults
+    docker:
+      - image: ruby:2.4-alpine
+  test-ruby-2.5:
+    <<: *defaults
+    docker:
+      - image: ruby:2.5-alpine
+
+workflows:
+  version: 2
+  test-against-rubies:
+    jobs:
+      - test-ruby-2.2
+      - test-ruby-2.3
+      - test-ruby-2.4
+      - test-ruby-2.5

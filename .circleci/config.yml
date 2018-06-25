@@ -8,12 +8,12 @@ rubygems-login: &rubygems-login
       echo ":rubygems_api_key: $RUBYGEMS_API_KEY" >  ~/.gem/credentials
       chmod 0600 ~/.gem/credentials
 
-install-git: &install-git
-  run: apk add --no-cache --no-progress git
+install-packages: &install-packages
+  run: apk add --no-cache --no-progress git openssh
 
 defaults: &defaults
   steps:
-    - *install-git
+    - *install-packages
     - checkout
     - run: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle
     - run: bundle exec rake test
@@ -28,7 +28,7 @@ jobs:
   deploy-gem:
     <<: *default-deploys
     steps:
-      - *install-git
+      - *install-packages
       - checkout
       - *rubygems-login
       - run:
@@ -42,7 +42,7 @@ jobs:
   deploy-pre-release-gem:
     <<: *default-deploys
     steps:
-      - *install-git
+      - *install-packages
       - checkout
       - *rubygems-login
       - run:
